@@ -4,6 +4,24 @@ import numpy as np
 
 from skimage import morphology
 
+def expand_pixels(mask, distance):
+    """
+    expand images with a fixed distance.
+    Implemented in N(4)
+    distance = |x - s| + |y - t|
+    :param mask: original binary mask
+    :param distance: expand mask with this distance
+    :return: expanded binary mask
+    """
+    if distance <= 0:
+        return mask
+    expand_mask = copy.deepcopy(mask)
+    h, w = np.where(mask > 0)
+    for x, y in zip(h, w):
+        expand_mask[x-distance:x+distance+1, y] = 1.0
+        expand_mask[x, y-distance:y+distance+1] = 1.0
+    return expand_mask
+    
 def computeF1(pred, gt):
     """
 
@@ -34,13 +52,23 @@ def computeTopo(pred, gt):
     """
     pred = pred[0].detach().cpu().numpy().astype(int)  # float data does not support bit_and and bit_or
     gt = gt[0].detach().cpu().numpy().astype(int)
-    #print(pred.shape)
+
     pred = morphology.skeletonize(pred >= 0.5)
     gt = morphology.skeletonize(gt >= 0.5)
 
-    cor_intersection = gt & pred
+    # expand
+    expand_pred = expand_pixels(pred, 2)
+    expand_gt = expand_pixels(gt, 2)
 
-    com_intersection = gt & pred
+    pred = pred.astype(int)
+    gt = gt.astype(int)
+    expand_pred = expand_pred.astype(int)
+    expand_gt = expand_gt.astype(int)
+
+
+    cor_intersection = expand_gt & pred # gt & pred
+
+    com_intersection = gt & expand_pred # gt & pred
 
     cor_tp = np.sum(cor_intersection)
     com_tp = np.sum(com_intersection)
